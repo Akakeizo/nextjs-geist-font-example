@@ -1,0 +1,512 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id          String   @id @default(cuid())
+  nome        String
+  email       String   @unique
+  senha       String
+  avatar      String?
+  papel       PapelUsuario
+  departamento String
+  ativo       Boolean  @default(true)
+  criadoEm    DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+  
+  // Relacionamentos
+  contatosCriados     Contato[]
+  empresasCriadas     Empresa[]
+  oportunidades       Oportunidade[]
+  tarefasCriadas      Tarefa[]
+  tarefasAtribuidas   Tarefa[]       @relation("TarefasAtribuidas")
+  atividades          Atividade[]
+  notas               Nota[]
+  campanhas           Campanha[]
+  sessoesChat         SessaoChat[]
+  
+  @@map("usuarios")
+}
+
+model Contato {
+  id              String   @id @default(cuid())
+  nome            String
+  email           String?
+  telefone        String?
+  celular         String?
+  cargo           String?
+  departamento    String?
+  dataNascimento  DateTime?
+  genero          String?
+  endereco        Endereco?
+  
+  // Relacionamentos
+  empresaId       String?
+  empresa         Empresa?   @relation(fields: [empresaId], references: [id])
+  criadoPorId     String
+  criadoPor       Usuario    @relation(fields: [criadoPorId], references: [id])
+  
+  origem          OrigemContato
+  status          StatusContato
+  pontuacao       Int       @default(0)
+  tags            String[]
+  observacoes     String?
+  
+  interacoes      Interacao[]
+  tarefas         Tarefa[]
+  oportunidades   Oportunidade[]
+  atividades      Atividade[]
+  notas           Nota[]
+  camposPersonalizados Json?
+  
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  
+  @@map("contatos")
+}
+
+model Empresa {
+  id              String   @id @default(cuid())
+  nome            String
+  nomeFantasia    String?
+  cnpj            String?  @unique
+  email           String?
+  telefone        String?
+  website         String?
+  setor           String?
+  tamanho         TamanhoEmpresa?
+  faturamento     Float?
+  
+  // Endereço
+  endereco        Endereco?
+  
+  // Relacionamentos
+  contatos        Contato[]
+  oportunidades   Oportunidade[]
+  criadoPorId     String
+  criadoPor       Usuario    @relation(fields: [criadoPorId], references: [id])
+  
+  observacoes     String?
+  camposPersonalizados Json?
+  
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  
+  @@map("empresas")
+}
+
+model Endereco {
+  id          String @id @default(cuid())
+  rua         String?
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  estado      String?
+  cep         String?
+  pais        String @default("Brasil")
+  
+  // Relacionamentos
+  contatoId   String? @unique
+  contato     Contato?
+  
+  empresaId   String? @unique
+  empresa     Empresa?
+  
+  @@map("enderecos")
+}
+
+model Oportunidade {
+  id              String   @id @default(cuid())
+  titulo          String
+  valor           Float
+  moeda           String   @default("BRL")
+  estagio         EstagioOportunidade
+  probabilidade   Int      @default(0)
+  dataFechamentoEsperada DateTime?
+  dataFechamentoReal DateTime?
+  
+  // Relacionamentos
+  contatoId       String
+  contato         Contato   @relation(fields: [contatoId], references: [id])
+  
+  empresaId       String?
+  empresa         Empresa?  @relation(fields: [empresaId], references: [id])
+  
+  responsavelId   String
+  responsavel     Usuario   @relation(fields: [responsavelId], references: [id])
+  
+  produtos        ProdutoOportunidade[]
+  atividades      Atividade[]
+  notas           Nota[]
+  tarefas         Tarefa[]
+  
+  observacoes     String?
+  camposPersonalizados Json?
+  
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  
+  @@map("oportunidades")
+}
+
+model Produto {
+  id          String   @id @default(cuid())
+  nome        String
+  descricao   String?
+  preco       Float
+  categoria   String
+  ativo       Boolean  @default(true)
+  
+  oportunidades ProdutoOportunidade[]
+  
+  criadoEm    DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+  
+  @@map("produtos")
+}
+
+model ProdutoOportunidade {
+  oportunidadeId String
+  oportunidade   Oportunidade @relation(fields: [oportunidadeId], references: [id])
+  produtoId      String
+  produto        Produto      @relation(fields: [produtoId], references: [id])
+  quantidade     Int          @default(1)
+  precoUnitario  Float
+  desconto       Float        @default(0)
+  
+  @@id([oportunidadeId, produtoId])
+  @@map("produtos_oportunidades")
+}
+
+model Tarefa {
+  id              String   @id @default(cuid())
+  titulo          String
+  descricao       String?
+  tipo            TipoTarefa
+  prioridade      PrioridadeTarefa
+  status          StatusTarefa
+  dataVencimento  DateTime?
+  dataConclusao   DateTime?
+  
+  // Relacionamentos
+  criadoPorId     String
+  criadoPor       Usuario    @relation(fields: [criadoPorId], references: [id])
+  
+  atribuidoParaId String?
+  atribuidoPara   Usuario?   @relation("TarefasAtribuidas", fields: [atribuidoParaId], references: [id])
+  
+  contatoId       String?
+  contato         Contato?
+  
+  oportunidadeId  String?
+  oportunidade    Oportunidade?
+  
+  lembretes       Lembrete[]
+  
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  
+  @@map("tarefas")
+}
+
+model Lembrete {
+  id          String   @id @default(cuid())
+  tipo        TipoLembrete
+  data        DateTime
+  enviado     Boolean  @default(false)
+  
+  tarefaId    String
+  tarefa      Tarefa   @relation(fields: [tarefaId], references: [id])
+  
+  @@map("lembretes")
+}
+
+model Atividade {
+  id              String   @id @default(cuid())
+  tipo            TipoAtividade
+  titulo          String
+  descricao       String?
+  data            DateTime
+  duracao         Int?     // em minutos
+  status          StatusAtividade
+  resultado       String?
+  proximaAcao     String?
+  
+  // Relacionamentos
+  usuarioId       String
+  usuario         Usuario    @relation(fields: [usuarioId], references: [id])
+  
+  contatoId       String?
+  contato         Contato?
+  
+  oportunidadeId  String?
+  oportunidade    Oportunidade?
+  
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  
+  @@map("atividades")
+}
+
+model Nota {
+  id          String   @id @default(cuid())
+  conteudo    String
+  privada     Boolean  @default(false)
+  sentimento  Sentimento?
+  
+  // Relacionamentos
+  usuarioId   String
+  usuario     Usuario    @relation(fields: [usuarioId], references: [id])
+  
+  contatoId   String?
+  contato     Contato?
+  
+  oportunidadeId String?
+  oportunidade   Oportunidade?
+  
+  criadoEm    DateTime @default(now())
+  @@map("notas")
+}
+
+model Interacao {
+  id          String   @id @default(cuid())
+  tipo        TipoInteracao
+  titulo      String
+  descricao   String?
+  data        DateTime
+  duracao     Int?     // em minutos
+  
+  // Relacionamentos
+  contatoId   String
+  contato     Contato   @relation(fields: [contatoId], references: [id])
+  
+  usuarioId   String
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+  
+  criadoEm    DateTime @default(now())
+  @@map("interacoes")
+}
+
+model Campanha {
+  id              String   @id @default(cuid())
+  nome            String
+  tipo            TipoCampanha
+  status          StatusCampanha
+  dataInicio      DateTime
+  dataFim         DateTime?
+  orcamento       Float
+  gasto           Float    @default(0)
+  
+  // Relacionamentos
+  criadoPorId     String
+  criadoPor       Usuario    @relation(fields: [criadoPorId], references: [id])
+  
+  metricas        MetricasCampanha?
+  
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+  
+  @@map("campanhas")
+}
+
+model MetricasCampanha {
+  id              String   @id @default(cuid())
+  enviados        Int      @default(0)
+  entregues       Int      @default(0)
+  abertos         Int      @default(0)
+  clicados        Int      @default(0)
+  convertidos     Int      @default(0)
+  devolvidos      Int      @default(0)
+  descadastrados  Int      @default(0)
+  roi             Float    @default(0)
+  
+  campanhaId      String   @unique
+  campanha        Campanha @relation(fields: [campanhaId], references: [id])
+  
+  @@map("metricas_campanhas")
+}
+
+model SessaoChat {
+  id              String   @id @default(cuid())
+  visitanteId     String
+  status          StatusSessaoChat
+  satisfacao      Int?     // 1-5 estrelas
+  aiAtendido      Boolean  @default(false)
+  
+  // Relacionamentos
+  usuarioId       String?
+  usuario         Usuario?   @relation(fields: [usuarioId], references: [id])
+  
+  mensagens       MensagemChat[]
+  
+  iniciadoEm      DateTime @default(now())
+  finalizadoEm    DateTime?
+  
+  @@map("sessoes_chat")
+}
+
+model MensagemChat {
+  id          String   @id @default(cuid())
+  conteudo    String
+  remetente   RemetenteMensagem
+  timestamp   DateTime @default(now())
+  tipo        TipoMensagem
+  
+  sessaoId    String
+  sessao      SessaoChat @relation(fields: [sessaoId], references: [id])
+  
+  @@map("mensagens_chat")
+}
+
+// Enums
+enum PapelUsuario {
+  ADMIN
+  GERENTE
+  VENDEDOR
+  SUPORTE
+  MARKETING
+}
+
+enum OrigemContato {
+  SITE
+  MIDIA_SOCIAL
+  CAMPANHA_EMAIL
+  INDICACAO
+  TELEFONE
+  EVENTO
+  ANUNCIO
+}
+
+enum StatusContato {
+  NOVO
+  CONTATADO
+  QUALIFICADO
+  PROPOSTA
+  NEGOCIACAO
+  FECHADO_GANHO
+  FECHADO_PERDIDO
+}
+
+enum TamanhoEmpresa {
+  MICRO
+  PEQUENA
+  MEDIA
+  GRANDE
+  EMPRESA_PUBLICA
+}
+
+enum EstagioOportunidade {
+  PROSPECCAO
+  QUALIFICACAO
+  PROPOSTA
+  NEGOCIACAO
+  FECHADO_GANHO
+  FECHADO_PERDIDO
+}
+
+enum TipoTarefa {
+  LIGACAO
+  EMAIL
+  REUNIAO
+  FOLLOW_UP
+  PROSPECCAO
+  OUTRO
+}
+
+enum PrioridadeTarefa {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum StatusTarefa {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+enum TipoLembrete {
+  EMAIL
+  NOTIFICACAO
+  SMS
+  WHATSAPP
+}
+
+enum TipoAtividade {
+  LIGACAO
+  EMAIL
+  REUNIAO
+  TAREFA
+  NOTA
+  SMS
+  WHATSAPP
+}
+
+enum StatusAtividade {
+  AGENDADA
+  CONCLUIDA
+  CANCELADA
+  ATRASADA
+}
+
+enum Sentimento {
+  POSITIVO
+  NEUTRO
+  NEGATIVO
+}
+
+enum TipoInteracao {
+  LIGACAO
+  EMAIL
+  REUNIAO
+  VISITA
+  WHATSAPP
+  SMS
+}
+
+enum TipoCampanha {
+  EMAIL
+  SMS
+  WHATSAPP
+  MIDIA_SOCIAL
+  MULTI_CANAL
+}
+
+enum StatusCampanha {
+  RASCUNHO
+  AGENDADA
+  ATIVA
+  PAUSADA
+  CONCLUIDA
+  CANCELADA
+}
+
+enum StatusSessaoChat {
+  ATIVA
+  FECHADA
+  TRANSFERIDA
+}
+
+enum RemetenteMensagem {
+  USUARIO
+  AGENTE
+  IA
+}
+
+enum TipoMensagem {
+  TEXTO
+  IMAGEM
+  ARQUIVO
+  RESPOSTA_RAPIDA
+}
